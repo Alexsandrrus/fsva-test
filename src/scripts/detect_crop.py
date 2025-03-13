@@ -29,7 +29,20 @@ def detect_and_crop(video_path, output_frames_dir, margin=10):
         boxes = results[0].boxes.xyxy  # Получение координат bounding box'ов
 
         for box in boxes:
-            x1, y1, x2, y2, conf, cls = box
+            # Выводим содержимое box для отладки
+            print("Box:", box)
+
+            # Проверяем количество значений в box
+            if len(box) == 6:
+                x1, y1, x2, y2, conf, cls = box
+            elif len(box) == 4:
+                x1, y1, x2, y2 = box
+                conf = None  # Устанавливаем confidence в None, если он недоступен
+                cls = None   # Устанавливаем класс в None, если он недоступен
+            else:
+                print("Unexpected box format:", box)
+                continue  # Пропускаем, если формат не соответствует ожиданиям
+
             # Обрезка кадра с учетом отступа
             x1 = max(0, int(x1) - margin)
             y1 = max(0, int(y1) - margin)
@@ -45,7 +58,6 @@ def detect_and_crop(video_path, output_frames_dir, margin=10):
 
     cap.release()
     return cropped_frames
-
 def create_video(cropped_frames, output_video_path):
     """Создает видео из обрезанных кадров."""
     if cropped_frames:
