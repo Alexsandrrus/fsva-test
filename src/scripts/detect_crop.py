@@ -1,8 +1,3 @@
-from gettext import install
-from winreg import REG_RESOURCE_REQUIREMENTS_LIST
-import pip
-
-
 import cv2
 import os
 import numpy as np
@@ -28,20 +23,21 @@ def detect_and_crop(video_path, output_frames_dir, margin=10):
         results = model(frame)
         boxes = results[0].boxes.xyxy  # Получение координат bounding box'ов
 
-        for box in boxes:
-            # Выводим содержимое box для отладки
-            print("Box:", box)
+        if len(boxes) == 0:
+            print("No objects detected in this frame.")
+            continue  # Пропускаем кадр, если нет обнаруженных объектов
 
+        for box in boxes:
             # Проверяем количество значений в box
             if len(box) == 6:
                 x1, y1, x2, y2, conf, cls = box
             elif len(box) == 4:
                 x1, y1, x2, y2 = box
-                conf = None  # Устанавливаем confidence в None, если он недоступен
-                cls = None   # Устанавливаем класс в None, если он недоступен
+                conf = None
+                cls = None
             else:
                 print("Unexpected box format:", box)
-                continue  # Пропускаем, если формат не соответствует ожиданиям
+                continue
 
             # Обрезка кадра с учетом отступа
             x1 = max(0, int(x1) - margin)
@@ -49,15 +45,20 @@ def detect_and_crop(video_path, output_frames_dir, margin=10):
             x2 = min(frame.shape[1], int(x2) + margin)
             y2 = min(frame.shape[0], int(y2) + margin)
 
-            cropped_frame = frame[y1:y2, x1:x2]
-            cropped_frames.append(cropped_frame)
+            # Проверка на корректность координат
+            if x1 < x2 and y1 < y2:
+                cropped_frame = frame[y1:y2, x1:x2]
+                cropped_frames.append(cropped_frame)
 
-            # Сохранение обрезанного кадра
-            cv2.imwrite(os.path.join(output_frames_dir, f'frame_{frame_count}.jpg'), cropped_frame)
-            frame_count += 1
+                # Сохранение обрезанного кадра
+                cv2.imwrite(os.path.join(output_frames_dir, f'frame_{frame_count}.jpg'), cropped_frame)
+                frame_count += 1
+            else:
+                print(f"Invalid cropping coordinates: x1={x1}, y1={y1}, x2={x2}, y2={y2}")
 
     cap.release()
     return cropped_frames
+
 def create_video(cropped_frames, output_video_path):
     """Создает видео из обрезанных кадров."""
     if cropped_frames:
