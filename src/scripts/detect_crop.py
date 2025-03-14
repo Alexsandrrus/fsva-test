@@ -1,18 +1,24 @@
 import cv2
 import os
 import numpy as np
+import pandas as pd
 from ultralytics import YOLO
 
 # Инициализация модели YOLO
-model = YOLO('yolov5s.pt')  
+model = YOLO('yolov5s.pt')  # Убедитесь, что модель yolov5s.pt доступна
 
 def detect_and_crop(video_path, output_frames_dir, margin=10):
     """Детектирует фигуру спортсмена и обрезает кадры."""
     os.makedirs(output_frames_dir, exist_ok=True)
 
     cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        print(f"Ошибка: Не удалось открыть видео {video_path}")
+        return [], []
+
     frame_count = 0
     cropped_frames = []
+    box_sizes = []  # Список для хранения размеров боксов
 
     while cap.isOpened():
         ret, frame = cap.read()
@@ -28,7 +34,6 @@ def detect_and_crop(video_path, output_frames_dir, margin=10):
             continue  # Пропускаем кадр, если нет обнаруженных объектов
 
         for box in boxes:
-            # Проверяем количество значений в box
             if len(box) == 6:
                 x1, y1, x2, y2, conf, cls = box
             elif len(box) == 4:
@@ -53,11 +58,12 @@ def detect_and_crop(video_path, output_frames_dir, margin=10):
                 # Сохранение обрезанного кадра
                 cv2.imwrite(os.path.join(output_frames_dir, f'frame_{frame_count}.jpg'), cropped_frame)
                 frame_count += 1
-            else:
-                print(f"Invalid cropping coordinates: x1={x1}, y1={y1}, x2={x2}, y2={y2}")
+
+                # Сохранение размеров боксов
+                box_sizes.append((x2 - x1, y2 - y1))  # (ширина, высота)
 
     cap.release()
-    return cropped_frames
+    return cropped_frames, box_sizes
 
 def create_video(cropped_frames, output_video_path):
     """Создает видео из обрезанных кадров."""
@@ -76,6 +82,8 @@ if __name__ == "__main__":
     output_frames_dir = 'output/frames/'
     output_video_path = 'output/processed_video.mp4'
     
-    cropped_frames = detect_and_crop(video_path, output_frames_dir)
+    cropped_frames, box_sizes = detect_and_crop(video_path, output_frames_dir)
+    box_sizes_df = pd.DataFrame(box_sizes, columns=['width', 'height'])
+    box_sizes_df.to_csv('output/box_sizes.csv', index=False)
     create_video(cropped_frames, output_video_path)
     print("✅ Обработка завершена.")
