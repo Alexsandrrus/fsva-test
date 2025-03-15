@@ -2,3 +2,10 @@ opencv-python
 ultralytics
 numpy
 matplotlib
+logging
+numpy 
+pandas 
+seaborn 
+warnings
+os
+cv2
